@@ -20,7 +20,12 @@ fs.mkdirSync(shotDir, { recursive: true })
 const APP_PORT = 4178
 const WORKER_PORT = 8787
 const BASE = `http://localhost:${APP_PORT}/usage-calculator/`
-const SYNC_URL = `http://localhost:${WORKER_PORT}`
+
+// Set SYNC_URL to run the same checks against a deployed worker instead of a
+// local one. The app is still served locally either way — what changes is
+// which server it talks to.
+const SYNC_URL = process.env.SYNC_URL ?? `http://localhost:${WORKER_PORT}`
+const USE_LOCAL_WORKER = process.env.SYNC_URL === undefined
 
 const mime = {
   '.html': 'text/html',
@@ -68,21 +73,24 @@ async function waitForWorker(timeoutMs = 60_000) {
   return false
 }
 
-const worker = spawn('npx', ['wrangler', 'dev', '--port', String(WORKER_PORT), '--local'], {
-  cwd: path.join(projDir, 'worker'),
-  stdio: ['ignore', 'pipe', 'pipe'],
-  // Node refuses to spawn a .cmd shim directly on Windows.
-  shell: process.platform === 'win32',
-})
-worker.stdout.on('data', (d) => process.env.VERBOSE && console.log('[worker]', String(d).trim()))
-worker.stderr.on('data', (d) => process.env.VERBOSE && console.log('[worker!]', String(d).trim()))
+const worker = USE_LOCAL_WORKER
+  ? spawn('npx', ['wrangler', 'dev', '--port', String(WORKER_PORT), '--local'], {
+      cwd: path.join(projDir, 'worker'),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // Node refuses to spawn a .cmd shim directly on Windows.
+      shell: process.platform === 'win32',
+    })
+  : undefined
+worker?.stdout.on('data', (d) => process.env.VERBOSE && console.log('[worker]', String(d).trim()))
+worker?.stderr.on('data', (d) => process.env.VERBOSE && console.log('[worker!]', String(d).trim()))
 
 server.listen(APP_PORT)
 
 let browser
 try {
-  check(await waitForWorker(), 'wrangler dev is serving the worker')
-  if (fails.length) throw new Error('worker did not start')
+  console.log(`Sync server: ${SYNC_URL}${USE_LOCAL_WORKER ? ' (wrangler dev)' : ' (deployed)'}`)
+  check(await waitForWorker(), 'the sync worker answers')
+  if (fails.length) throw new Error('worker not reachable')
 
   browser = await chromium.launch()
 
@@ -221,7 +229,7 @@ try {
 } finally {
   if (browser) await browser.close()
   server.close()
-  worker.kill()
+  worker?.kill()
 }
 
 console.log('\n' + (fails.length === 0 ? 'ALL PASS' : 'FAILURES: ' + fails.length))

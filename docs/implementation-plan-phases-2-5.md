@@ -79,11 +79,20 @@
 
 ### Exit: two browsers sync a dataset end-to-end locally (Playwright, miniflare); conflict chooser resolves concurrent edits; e2e green.
 
-### Status (2026-07-24): 4.1–4.4 done, 4.5 waiting on a Cloudflare account.
+### Status (2026-07-24): Phase 4 complete, worker deployed.
 
-`npm run verify:sync` drives two isolated browser profiles against the worker
-running under `wrangler dev`; 17 checks pass, including that the server's
-stored records contain neither the property label nor the postal code.
+Live at `https://usage-calculator-sync.alistoicakovacs.workers.dev`
+(version `9409a1e5`). `npm run verify:sync` drives two isolated browser
+profiles against `wrangler dev`; setting `SYNC_URL` runs the same 17 checks
+against the deployment instead. Both pass, including that the server's stored
+records contain neither the property label nor the postal code.
+
+**The sync server stays opt-in per device, deliberately.** The app is public on
+GitHub Pages, so a baked-in default server would mean every stranger's vault
+syncing into this Cloudflare account — burning the 100k requests/day free tier
+at roughly 1,440 requests per device per day, and storing their blobs
+indefinitely. Entering the URL once per device is the cost of not running a
+free service for the internet.
 
 Two deliberate departures from the plan above, both made for correctness:
 
