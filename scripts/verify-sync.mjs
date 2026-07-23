@@ -19,7 +19,11 @@ fs.mkdirSync(shotDir, { recursive: true })
 
 const APP_PORT = 4178
 const WORKER_PORT = 8787
-const BASE = `http://localhost:${APP_PORT}/usage-calculator/`
+// APP_URL points the run at a deployed app instead of the local dist. Worth
+// doing at least once per release: only then is the browser's Origin the real
+// Pages origin, which is what the worker's CORS actually has to satisfy.
+const BASE = process.env.APP_URL ?? `http://localhost:${APP_PORT}/usage-calculator/`
+const SERVE_LOCALLY = process.env.APP_URL === undefined
 
 // Set SYNC_URL to run the same checks against a deployed worker instead of a
 // local one. The app is still served locally either way — what changes is
@@ -84,10 +88,11 @@ const worker = USE_LOCAL_WORKER
 worker?.stdout.on('data', (d) => process.env.VERBOSE && console.log('[worker]', String(d).trim()))
 worker?.stderr.on('data', (d) => process.env.VERBOSE && console.log('[worker!]', String(d).trim()))
 
-server.listen(APP_PORT)
+if (SERVE_LOCALLY) server.listen(APP_PORT)
 
 let browser
 try {
+  console.log(`App:         ${BASE}${SERVE_LOCALLY ? ' (local dist)' : ' (deployed)'}`)
   console.log(`Sync server: ${SYNC_URL}${USE_LOCAL_WORKER ? ' (wrangler dev)' : ' (deployed)'}`)
   check(await waitForWorker(), 'the sync worker answers')
   if (fails.length) throw new Error('worker not reachable')
@@ -232,7 +237,7 @@ try {
   fails.push('exception: ' + e.message)
 } finally {
   if (browser) await browser.close()
-  server.close()
+  if (SERVE_LOCALLY) server.close()
   worker?.kill()
 }
 
