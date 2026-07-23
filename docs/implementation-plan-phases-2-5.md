@@ -1,17 +1,30 @@
 # Detailed Implementation Plan — Phases 2 to 5
 
-**Status:** Proposed; awaiting approval
+**Status:** Phases 2–4 complete and deployed. Phase 5 is the remaining work.
 **Parent plan:** `docs/implementation-plan.md` (approved)
-**Updated:** 2026-07-23
+**Updated:** 2026-07-24
 
-## Current state (committed + working tree)
+## Current state
 
 | Layer | State |
 |---|---|
-| Phase 0 scaffold, CI, Pages deploy | ✅ Committed, live at `alistoicakovacs.github.io/usage-calculator/` |
-| Phase 1 domain layer | ✅ Committed, 77 unit tests green |
-| Data layer (`src/data`) | 🟡 In working tree: Dexie schema with sync metadata, repositories with tombstone deletes, 7 tests green |
-| UI screens (`src/ui`) | 🟡 In working tree: Home, PropertyForm, Property, Meter, ReadingForm; typecheck/lint/tests green; **not yet browser-verified** |
+| Phase 0 scaffold, CI, Pages deploy | ✅ Live at `alistoicakovacs.github.io/usage-calculator/` |
+| Phase 1 domain layer | ✅ 77 unit tests |
+| Phase 2 data layer + screens | ✅ Dexie with sync metadata, tombstone deletes, screen tests |
+| Phase 3 crypto + recovery key | ✅ AES-GCM vault, recovery key, first-run gate |
+| Phase 4 sync | ✅ Worker deployed, two-device sync verified against production |
+| Phase 5 polish | ⬜ Not started |
+
+**Test counts:** 260 app tests (24 files) + 20 worker tests. `npm test` runs both.
+
+### Verification commands
+
+| Command | What it proves |
+|---|---|
+| `npm test` | App + worker unit/integration tests |
+| `npm run verify:sync` | Two browser profiles, local dist, `wrangler dev` |
+| `APP_URL=… SYNC_URL=… node scripts/verify-sync.mjs` | Same 17 checks against the live app and live worker. Run at least once per release — only then is the browser's Origin the real Pages origin that the worker's CORS has to satisfy. |
+| `npm ci --dry-run --os=linux --cpu=x64` | Catches lockfile/platform breakage without a CI round-trip |
 
 ## Phase 2 — Local-only app (remaining work)
 
@@ -124,6 +137,27 @@ unambiguous, and a key someone has written down has to keep working.
 - German formatting audit: all numbers/dates through `formatGermanDecimal`/`formatDateDe`.
 - Full Playwright suite: flows 1–10 as user journeys against the built app.
 - README with screenshots, recovery-key warning, self-host notes.
+
+### Carried in from Phase 4 — do these first
+
+1. **The sync scheduler has no test.** `syncOnce` (22 tests) and `backoffDelay`
+   (4) are covered, and `verify:sync` drives sync via the manual button — but
+   the 60-second interval in `SyncContext.tsx` and its `online`-event retry have
+   never been observed firing. First suspect if sync ever appears stuck. Fake
+   timers in a jsdom test would settle it.
+2. **The worker has no rate limiting and no vault-size cap.** For two devices
+   the free tier is not close to a constraint (~1,440 requests/device/day
+   against 100k/day). The load-bearing assumption is that vault ids are random
+   UUIDs, so an attacker has nothing to enumerate. Fine as-is; know that it is
+   the assumption.
+3. **Stray test vaults accumulate in production.** Every `verify:sync` run with
+   `SYNC_URL` pointed at the deployment leaves one vault of encrypted junk in a
+   Durable Object — three so far. Unreachable without the key and free, but
+   worth a cleanup path, or restrict production runs to release checks.
+4. **The sync server is deliberately not a baked-in default**, because the app
+   is public on Pages and a default would route every stranger's vault into one
+   Cloudflare account. The pairing link carries the server instead. Do not
+   "simplify" this away.
 
 ## Testing gates per phase
 
