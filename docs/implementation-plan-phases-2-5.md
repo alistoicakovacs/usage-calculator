@@ -79,6 +79,33 @@
 
 ### Exit: two browsers sync a dataset end-to-end locally (Playwright, miniflare); conflict chooser resolves concurrent edits; e2e green.
 
+### Status (2026-07-24): 4.1–4.4 done, 4.5 waiting on a Cloudflare account.
+
+`npm run verify:sync` drives two isolated browser profiles against the worker
+running under `wrangler dev`; 17 checks pass, including that the server's
+stored records contain neither the property label nor the postal code.
+
+Two deliberate departures from the plan above, both made for correctness:
+
+- **Outbox is a per-record version map, not an `updatedAt` watermark.** A
+  watermark cannot tell "I wrote this" from "I received this a second ago", so
+  two devices bounce the same record between them forever; and any two writes
+  landing in the same millisecond as the watermark can be skipped outright.
+  Cost is one version vector per record in `localState`.
+- **Records with an open conflict are held out of the outbox.** Pushing one
+  would overwrite the very copy the user is being asked to compare against.
+
+Found and fixed along the way, in Phase 3 code rather than Phase 4: the
+recovery-key checksum missed **14.5%** of single-character typos (22.6% at the
+first character), because one base32 character moves one byte by a multiple of
+8 and a sum taken mod 32 loses that entirely. It also made `recovery.test.ts`
+flaky at roughly 1 run in 5. Replaced with a position-weighted sum mod 1021
+across two check symbols, which by construction catches every single-character
+substitution and every adjacent transposition — measured at 0 misses in
+837,000 cases, against 121,500 before. Keys issued under the old checksum are
+still accepted on restore: they differ in length, so the format is
+unambiguous, and a key someone has written down has to keep working.
+
 ## Phase 5 — Polish and completeness
 
 - CSV export per meter (readings + intervals + costs) with German headers, semicolon-separated for Excel-de.
