@@ -54,6 +54,8 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['src/domain/**/*.test.ts', 'src/sync/**/*.test.ts'],
+          // The sync client needs IndexedDB and runs in the jsdom project below.
+          exclude: ['src/sync/client.test.ts'],
         },
       },
       {
@@ -66,6 +68,7 @@ export default defineConfig({
             'src/data/**/*.test.ts',
             'src/ui/**/*.test.{ts,tsx}',
             'src/crypto/**/*.test.ts',
+            'src/sync/client.test.ts',
           ],
         },
       },
