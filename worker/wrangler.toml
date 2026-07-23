@@ -1,0 +1,14 @@
+name = "usage-calculator-sync"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+# One Durable Object per vault: serializes pushes so the version counter is
+# monotonic without any cross-request locking on our side.
+[[durable_objects.bindings]]
+name = "VAULTS"
+class_name = "VaultDurableObject"
+
+# SQLite-backed Durable Objects are the only kind available on the free plan.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["VaultDurableObject"]
