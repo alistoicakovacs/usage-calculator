@@ -7,7 +7,8 @@ import { SyncProvider, type SyncContextValue } from '../SyncContext'
 import { makeTestContext } from '../test-utils'
 import { generateVaultKey } from '../../crypto/keys'
 import { getRecoveryKey } from '../../crypto/vault'
-import { loadServerUrl } from '../../sync/settings'
+import { loadServerUrl, saveServerUrl } from '../../sync/settings'
+import * as pairing from '../../sync/pairing'
 import type { RepoContext } from '../../data/repos'
 import { SyncScreen } from './SyncScreen'
 
@@ -162,6 +163,34 @@ describe('SyncScreen', () => {
       fireEvent.click(screen.getByRole('button', { name: /gerät koppeln/i }))
 
       expect(await screen.findByText(/vollen zugriff/i)).toBeInTheDocument()
+    })
+
+    it('hands the second device this device’s sync server', async () => {
+      const spy = vi.spyOn(pairing, 'buildPairingUrl')
+      const { ctx, vault } = await renderScreen()
+      await saveServerUrl(ctx.db, 'https://sync.example.workers.dev')
+
+      fireEvent.click(screen.getByRole('button', { name: /gerät koppeln/i }))
+      await screen.findByRole('img', { name: /kopplung/i })
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.any(String),
+        vault.id,
+        expect.any(String),
+        'https://sync.example.workers.dev',
+      )
+      spy.mockRestore()
+    })
+
+    it('still produces a code when this device syncs nowhere', async () => {
+      const spy = vi.spyOn(pairing, 'buildPairingUrl')
+      await renderScreen()
+
+      fireEvent.click(screen.getByRole('button', { name: /gerät koppeln/i }))
+      await screen.findByRole('img', { name: /kopplung/i })
+
+      expect(spy).toHaveBeenCalledWith(expect.any(String), 'vault-42', expect.any(String), undefined)
+      spy.mockRestore()
     })
 
     it('can hide the code again', async () => {

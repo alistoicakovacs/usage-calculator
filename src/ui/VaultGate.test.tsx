@@ -3,14 +3,15 @@ import { render, screen } from '@testing-library/react'
 import { createTestDb } from '../data/db'
 import { createVault, loadVault } from '../crypto/vault'
 import { buildPairingUrl } from '../sync/pairing'
+import { loadServerUrl } from '../sync/settings'
 import { VaultGate } from './VaultGate'
 
 let counter = 0
 const freshDb = () => createTestDb(`vault-gate-${counter++}-${crypto.randomUUID()}`)
 
-async function pairingLinkFor(): Promise<{ vaultId: string; hash: string }> {
+async function pairingLinkFor(serverUrl?: string): Promise<{ vaultId: string; hash: string }> {
   const { vault, recoveryKey } = await createVault(freshDb())
-  const url = buildPairingUrl('http://localhost/', vault.id, recoveryKey)
+  const url = buildPairingUrl('http://localhost/', vault.id, recoveryKey, serverUrl)
   return { vaultId: vault.id, hash: new URL(url).hash }
 }
 
@@ -58,6 +59,53 @@ describe('VaultGate', () => {
 
     await screen.findByText('geheim')
     expect(window.location.hash).not.toContain('k=')
+  })
+
+  it('adopts the sync server the pairing link names', async () => {
+    const db = freshDb()
+    const { hash } = await pairingLinkFor('https://sync.example.workers.dev')
+    window.location.hash = hash
+
+    render(
+      <VaultGate db={db}>
+        <p>geheim</p>
+      </VaultGate>,
+    )
+
+    await screen.findByText('geheim')
+    expect(await loadServerUrl(db)).toBe('https://sync.example.workers.dev')
+  })
+
+  it('pairs fine from a link that names no server', async () => {
+    const db = freshDb()
+    const { hash } = await pairingLinkFor()
+    window.location.hash = hash
+
+    render(
+      <VaultGate db={db}>
+        <p>geheim</p>
+      </VaultGate>,
+    )
+
+    await screen.findByText('geheim')
+    expect(await loadServerUrl(db)).toBeUndefined()
+  })
+
+  it('refuses a plain-http server smuggled in through a link', async () => {
+    // A scanned code is not a trusted source. http would put the vault's
+    // bearer token on the wire in the clear.
+    const db = freshDb()
+    const { hash } = await pairingLinkFor('http://evil.example.com')
+    window.location.hash = hash
+
+    render(
+      <VaultGate db={db}>
+        <p>geheim</p>
+      </VaultGate>,
+    )
+
+    await screen.findByText('geheim')
+    expect(await loadServerUrl(db)).toBeUndefined()
   })
 
   it('falls back to the first-run screen when the link is damaged', async () => {

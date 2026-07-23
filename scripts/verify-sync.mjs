@@ -152,7 +152,10 @@ try {
 
   // ---- Device B: join by the pairing link, then pull ----
   console.log('\nDevice B: follow the pairing link')
-  const pairUrl = `${BASE}#/pair?id=${encodeURIComponent(vaultId)}&k=${encodeURIComponent(recoveryKey)}`
+  // The same payload the QR encodes: vault, key, and the server to reach it on.
+  const pairUrl =
+    `${BASE}#/pair?id=${encodeURIComponent(vaultId)}` +
+    `&k=${encodeURIComponent(recoveryKey)}&s=${encodeURIComponent(SYNC_URL)}`
   await b.goto(pairUrl, { waitUntil: 'networkidle' })
   await b.waitForTimeout(600)
   const headerB = await b.textContent('.app-header')
@@ -160,10 +163,11 @@ try {
   check(/Zählerstand/.test(headerB), 'B joined the vault from the link')
   check(!/k=/.test(b.url()), 'B wiped the key out of its address bar')
 
-  console.log('Device B: point at the same server and sync')
+  console.log('Device B: sync without being configured by hand')
   await b.goto(`${BASE}#/sync`, { waitUntil: 'networkidle' })
-  await b.getByLabel(/sync-server/i).fill(SYNC_URL)
-  await b.getByRole('button', { name: /speichern/i }).click()
+  await b.waitForTimeout(300)
+  const serverOnB = await b.getByLabel(/sync-server/i).inputValue()
+  check(serverOnB === SYNC_URL, `B took the server from the pairing link (got: ${serverOnB})`)
   await b.getByRole('button', { name: /jetzt synchronisieren/i }).click()
   await b.waitForTimeout(2000)
 

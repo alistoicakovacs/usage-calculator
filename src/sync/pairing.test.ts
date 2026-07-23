@@ -27,6 +27,35 @@ describe('buildPairingUrl', () => {
   })
 })
 
+describe('the sync server it carries', () => {
+  const SERVER = 'https://sync.example.workers.dev'
+
+  it('passes the server on to the scanning device', () => {
+    const url = buildPairingUrl(APP, 'vault-1', KEY, SERVER)
+
+    expect(parsePairingHash(new URL(url).hash)?.serverUrl).toBe(SERVER)
+  })
+
+  it('leaves it out when this device syncs nowhere', () => {
+    const url = buildPairingUrl(APP, 'vault-1', KEY)
+
+    expect(new URL(url).hash).not.toContain('s=')
+    expect(parsePairingHash(new URL(url).hash)?.serverUrl).toBeUndefined()
+  })
+
+  it('still pairs when the link predates this field', () => {
+    const payload = parsePairingHash(`#/pair?id=vault-1&k=${encodeURIComponent(KEY)}`)
+
+    expect(payload).toMatchObject({ vaultId: 'vault-1', recoveryKey: KEY })
+  })
+
+  it('escapes a server url so it cannot break out of its parameter', () => {
+    const url = buildPairingUrl(APP, 'vault-1', KEY, 'https://x.dev/?a=1&k=stolen')
+
+    expect(parsePairingHash(new URL(url).hash)?.recoveryKey).toBe(KEY)
+  })
+})
+
 describe('parsePairingHash', () => {
   it('reads back what buildPairingUrl wrote', () => {
     const url = buildPairingUrl(APP, 'vault-1', KEY)

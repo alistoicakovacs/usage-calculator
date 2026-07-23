@@ -11,14 +11,26 @@
 
 export const PAIR_ROUTE = '/pair'
 
-export function buildPairingUrl(appUrl: string, vaultId: string, recoveryKey: string): string {
+export function buildPairingUrl(
+  appUrl: string,
+  vaultId: string,
+  recoveryKey: string,
+  serverUrl?: string,
+): string {
   const params = new URLSearchParams({ id: vaultId, k: recoveryKey })
+  // Carrying the server saves the second device a retyping, and keeps us from
+  // having to bake a default server into a publicly hosted app — which would
+  // make one person's Cloudflare account the sync service for every stranger
+  // who opens it.
+  if (serverUrl) params.set('s', serverUrl)
   return `${appUrl.split('#')[0]}#${PAIR_ROUTE}?${params.toString()}`
 }
 
 export interface PairingPayload {
   vaultId: string
   recoveryKey: string
+  /** Absent on links made before this field, or by a local-only device. */
+  serverUrl?: string
 }
 
 export function parsePairingHash(hash: string): PairingPayload | undefined {
@@ -31,5 +43,6 @@ export function parsePairingHash(hash: string): PairingPayload | undefined {
   const recoveryKey = params.get('k')
   if (!vaultId || !recoveryKey) return undefined
 
-  return { vaultId, recoveryKey }
+  const serverUrl = params.get('s') || undefined
+  return serverUrl ? { vaultId, recoveryKey, serverUrl } : { vaultId, recoveryKey }
 }

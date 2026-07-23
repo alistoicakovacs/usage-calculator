@@ -47,7 +47,7 @@ export function SyncScreen() {
       </section>
 
       <ServerSection db={db} />
-      <PairingSection />
+      <PairingSection db={db} />
     </Screen>
   )
 }
@@ -111,7 +111,7 @@ function ServerSection({ db }: { db: ReturnType<typeof useRepoContext>['db'] }) 
   )
 }
 
-function PairingSection() {
+function PairingSection({ db }: { db: ReturnType<typeof useRepoContext>['db'] }) {
   const vault = useVault()
   const [revealed, setRevealed] = useState(false)
   const [recoveryKey, setRecoveryKey] = useState<string>()
@@ -125,7 +125,9 @@ function PairingSection() {
     }
     let cancelled = false
     void getRecoveryKey(vault).then(async (key) => {
-      const url = buildPairingUrl(window.location.href, vault.id, key)
+      // Hand the second device our server too, so it needs no setup at all.
+      const serverUrl = await loadServerUrl(db)
+      const url = buildPairingUrl(window.location.href, vault.id, key, serverUrl)
       const svg = await QRCode.toString(url, { type: 'svg', margin: 1 })
       if (cancelled) return
       setRecoveryKey(key)
@@ -134,7 +136,7 @@ function PairingSection() {
     return () => {
       cancelled = true
     }
-  }, [revealed, vault])
+  }, [revealed, vault, db])
 
   return (
     <section className="card">

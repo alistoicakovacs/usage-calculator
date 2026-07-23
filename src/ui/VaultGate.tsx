@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { getDb, type AppDatabase } from '../data/db'
 import { createVault, loadVault, restoreVault, type Vault } from '../crypto/vault'
 import { parsePairingHash } from '../sync/pairing'
+import { normalizeServerUrl, saveServerUrl } from '../sync/settings'
 import { VaultProvider } from './VaultContext'
 
 type Phase =
@@ -34,6 +35,14 @@ export function VaultGate({
 
       const restored = await restoreVault(db, payload.vaultId, payload.recoveryKey)
       if (!restored.ok) return { kind: 'first-run' }
+
+      // A scanned code is not a trusted source, so the server it names goes
+      // through the same check as one typed by hand. A rejected one simply
+      // leaves the device local-only rather than failing the pairing.
+      if (payload.serverUrl) {
+        const server = normalizeServerUrl(payload.serverUrl)
+        if (server.ok) await saveServerUrl(db, server.url)
+      }
 
       forgetPairingLink()
       return { kind: 'ready', vault: restored.vault }
