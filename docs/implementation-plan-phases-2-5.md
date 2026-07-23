@@ -138,4 +138,11 @@ unambiguous, and a key someone has written down has to keep working.
 
 - `useAsyncData` is deliberately simple; if staleness bites, switch to `dexie-react-hooks` `useLiveQuery` (small dependency, purpose-built) rather than growing a custom cache.
 - Version vectors are already stamped on every write since Phase 2, so Phase 4 needs no data migration.
+- `@emnapi/core` and `@emnapi/runtime` are pinned as devDependencies but nothing
+  imports them. They exist because `@cloudflare/vitest-pool-workers` pulls in
+  `miniflare` → `sharp`, and npm cannot produce a lockfile that satisfies
+  `npm ci` for sharp's wasm32 optional-dependency chain on any platform —
+  including the one that generated it. Pinning them puts concrete versions in
+  the lockfile. Check with `npm ci --dry-run --os=linux --cpu=x64` before
+  touching them; CI is the only other place that failure shows up.
 - GitHub Pages is public hosting; the repo went public for Pages. Vault data never touches the repo or Pages.
