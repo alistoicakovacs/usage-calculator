@@ -78,6 +78,16 @@ try {
   await page.reload({ waitUntil: 'networkidle' })
   await page.waitForTimeout(300)
 
+  console.log('Flow 1: create encrypted vault + recovery key')
+  await page.getByRole('button', { name: 'Neuen Tresor anlegen' }).click()
+  await page.waitForTimeout(300)
+  const recoveryText = await page.textContent('.app-shell')
+  check(/Wiederherstellungsschlüssel/.test(recoveryText), 'recovery key screen shown')
+  check(/[0-9A-Z]{5}-[0-9A-Z]{5}/.test(recoveryText), 'recovery key is grouped format')
+  await shot('00-recovery-key')
+  await page.getByRole('button', { name: /Ich habe den Schlüssel gesichert/ }).click()
+  await page.waitForTimeout(400)
+
   console.log('Flow: empty home')
   check((await page.textContent('h1')) === 'Zählerstand', 'home title shows Zählerstand')
   check(await page.getByText('Immobilie hinzufügen').first().isVisible(), 'add-property CTA visible')

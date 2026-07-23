@@ -1,5 +1,6 @@
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { AppProvider } from './AppContext'
+import { VaultGate } from './VaultGate'
 import { HomeScreen } from './screens/HomeScreen'
 import { MeterScreen } from './screens/MeterScreen'
 import { PropertyFormScreen } from './screens/PropertyFormScreen'
@@ -10,16 +11,18 @@ import { ReadingFormScreen } from './screens/ReadingFormScreen'
 export default function App() {
   return (
     <AppProvider>
-      <HashRouter>
-        <Routes>
-          <Route path="/" element={<HomeScreen />} />
-          <Route path="/property/new" element={<PropertyFormScreen />} />
-          <Route path="/property/:propertyId" element={<PropertyScreen />} />
-          <Route path="/property/:propertyId/edit" element={<PropertyFormScreen />} />
-          <Route path="/meter/:meterId" element={<MeterScreen />} />
-          <Route path="/meter/:meterId/reading/:readingId" element={<ReadingFormScreen />} />
-        </Routes>
-      </HashRouter>
+      <VaultGate>
+        <HashRouter>
+          <Routes>
+            <Route path="/" element={<HomeScreen />} />
+            <Route path="/property/new" element={<PropertyFormScreen />} />
+            <Route path="/property/:propertyId" element={<PropertyScreen />} />
+            <Route path="/property/:propertyId/edit" element={<PropertyFormScreen />} />
+            <Route path="/meter/:meterId" element={<MeterScreen />} />
+            <Route path="/meter/:meterId/reading/:readingId" element={<ReadingFormScreen />} />
+          </Routes>
+        </HashRouter>
+      </VaultGate>
     </AppProvider>
   )
 }

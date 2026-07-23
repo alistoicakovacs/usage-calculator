@@ -53,7 +53,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['src/domain/**/*.test.ts', 'src/sync/**/*.test.ts', 'src/crypto/**/*.test.ts'],
+          include: ['src/domain/**/*.test.ts', 'src/sync/**/*.test.ts'],
         },
       },
       {
@@ -62,7 +62,11 @@ export default defineConfig({
           name: 'data',
           environment: 'jsdom',
           setupFiles: ['./src/test/setup.ts'],
-          include: ['src/data/**/*.test.ts', 'src/ui/**/*.test.{ts,tsx}'],
+          include: [
+            'src/data/**/*.test.ts',
+            'src/ui/**/*.test.{ts,tsx}',
+            'src/crypto/**/*.test.ts',
+          ],
         },
       },
     ],
