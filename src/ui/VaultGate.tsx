@@ -1,47 +1,78 @@
-// Vault context: exposes the current vault (id + key) to the app once created
-// or restored. Gates the app behind a create-or-restore first-run screen.
-import { createContext, useContext, useEffect, useState } from 'react'
-import { getDb } from '../data/db'
+// Gates the app behind a create-or-restore first-run screen, and handles the
+// pairing links a second device scans.
+import { useEffect, useState } from 'react'
+import { getDb, type AppDatabase } from '../data/db'
 import { createVault, loadVault, restoreVault, type Vault } from '../crypto/vault'
-
-interface VaultContextValue {
-  vault: Vault
-}
-
-const VaultCtx = createContext<VaultContextValue | undefined>(undefined)
-
-export function useVault(): Vault {
-  const ctx = useContext(VaultCtx)
-  if (!ctx) throw new Error('useVault must be used inside VaultGate')
-  return ctx.vault
-}
+import { parsePairingHash } from '../sync/pairing'
+import { VaultProvider } from './VaultContext'
 
 type Phase =
   | { kind: 'loading' }
   | { kind: 'first-run' }
   | { kind: 'ready'; vault: Vault }
 
-export function VaultGate({ children }: { children: React.ReactNode }) {
+export function VaultGate({
+  children,
+  db = getDb(),
+}: {
+  children: React.ReactNode
+  db?: AppDatabase
+}) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
 
   useEffect(() => {
-    void loadVault(getDb()).then((vault) => {
-      setPhase(vault ? { kind: 'ready', vault } : { kind: 'first-run' })
+    let cancelled = false
+
+    async function open(): Promise<Phase> {
+      // An existing vault always wins. A pairing link must never be able to
+      // swap out the vault a device already holds data for.
+      const existing = await loadVault(db)
+      if (existing) return { kind: 'ready', vault: existing }
+
+      const payload = parsePairingHash(window.location.hash)
+      if (!payload) return { kind: 'first-run' }
+
+      const restored = await restoreVault(db, payload.vaultId, payload.recoveryKey)
+      if (!restored.ok) return { kind: 'first-run' }
+
+      forgetPairingLink()
+      return { kind: 'ready', vault: restored.vault }
+    }
+
+    void open().then((next) => {
+      if (!cancelled) setPhase(next)
     })
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [db])
 
   if (phase.kind === 'loading') {
     return <div className="app-shell" style={{ padding: '2rem' }} />
   }
 
   if (phase.kind === 'first-run') {
-    return <FirstRunScreen onReady={(vault) => setPhase({ kind: 'ready', vault })} />
+    return <FirstRunScreen db={db} onReady={(vault) => setPhase({ kind: 'ready', vault })} />
   }
 
-  return <VaultCtx.Provider value={{ vault: phase.vault }}>{children}</VaultCtx.Provider>
+  return <VaultProvider vault={phase.vault}>{children}</VaultProvider>
 }
 
-function FirstRunScreen({ onReady }: { onReady: (vault: Vault) => void }) {
+/**
+ * Strip the pairing payload from the address bar as soon as the key is safely
+ * stored, so it does not linger in the URL or in a screenshot.
+ */
+function forgetPairingLink(): void {
+  window.history.replaceState(null, '', window.location.pathname + window.location.search)
+}
+
+function FirstRunScreen({
+  db,
+  onReady,
+}: {
+  db: AppDatabase
+  onReady: (vault: Vault) => void
+}) {
   const [mode, setMode] = useState<'choose' | 'created' | 'restore'>('choose')
   const [recoveryKey, setRecoveryKey] = useState('')
   const [restoreId, setRestoreId] = useState('')
@@ -50,14 +81,14 @@ function FirstRunScreen({ onReady }: { onReady: (vault: Vault) => void }) {
   const [pendingVault, setPendingVault] = useState<Vault>()
 
   async function create() {
-    const { vault, recoveryKey } = await createVault(getDb())
+    const { vault, recoveryKey } = await createVault(db)
     setPendingVault(vault)
     setRecoveryKey(recoveryKey)
     setMode('created')
   }
 
   async function restore() {
-    const result = await restoreVault(getDb(), restoreId.trim(), restoreKey)
+    const result = await restoreVault(db, restoreId.trim(), restoreKey)
     if (!result.ok) {
       setError('Ungültiger Wiederherstellungsschlüssel oder Tresor-ID.')
       return

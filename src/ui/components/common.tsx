@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useOptionalSync, type SyncContextValue } from '../SyncContext'
 import './ui.css'
 
 export function Screen({
@@ -11,6 +12,8 @@ export function Screen({
   back?: string
   children: React.ReactNode
 }) {
+  const sync = useOptionalSync()
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -20,9 +23,31 @@ export function Screen({
           </Link>
         )}
         <h1>{title}</h1>
+        {sync && <SyncIndicator sync={sync} />}
       </header>
       {children}
     </div>
+  )
+}
+
+/**
+ * Sync is meant to be forgettable, so this stays a single quiet marker — until
+ * something needs the user, which is only ever an unsettled conflict.
+ */
+function SyncIndicator({ sync }: { sync: SyncContextValue }) {
+  if (sync.conflicts.length > 0) {
+    const count = sync.conflicts.length
+    return (
+      <Link className="sync-indicator conflicts" to="/conflicts">
+        {count} Konflikt{count === 1 ? '' : 'e'}
+      </Link>
+    )
+  }
+
+  return (
+    <Link className={`sync-indicator ${sync.status}`} to="/sync" title="Synchronisierung">
+      {sync.status === 'offline' ? 'Offline' : 'Synchronisierung'}
+    </Link>
   )
 }
 
