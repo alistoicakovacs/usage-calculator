@@ -12,6 +12,7 @@
     "test:worker": "vitest run --root worker",
     "deploy:worker": "wrangler deploy --cwd worker",
     "e2e": "playwright test",
+    "verify:sync": "npm run build && node scripts/verify-sync.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
