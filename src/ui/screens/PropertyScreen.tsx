@@ -13,7 +13,8 @@ import {
 import { forecastBillingPeriod, type Forecast } from '../../domain/forecast'
 import { formatEuro } from '../../domain/parse'
 import { roundMoney } from '../../domain/decimal'
-import { EstimateTag, Field, Screen, meterIcon, meterKindLabel } from '../components/common'
+import { EstimateTag, Field, Screen, ConfirmButton } from '../components/common'
+import { meterIcon, meterKindLabel } from '../components/meters'
 import type { MeterKind } from '../../domain/types'
 import type { MeterRow } from '../../data/db'
 
@@ -157,6 +158,20 @@ export function PropertyScreen() {
           Immobilie bearbeiten
         </Link>
       </div>
+
+      <section className="card" style={{ marginTop: '0.75rem' }}>
+        <h2 className="card-title">Immobilie verwalten</h2>
+        <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: 0 }}>
+          Löschen entfernt die Immobilie samt aller Zähler, Stände und Tarife.
+        </p>
+        <ConfirmButton
+          label="Immobilie löschen"
+          confirmLabel="Wirklich löschen"
+          onConfirm={() => {
+            void propertyRepo.remove(ctx, property.id).then(() => navigate('/', { replace: true }))
+          }}
+        />
+      </section>
     </Screen>
   )
 }

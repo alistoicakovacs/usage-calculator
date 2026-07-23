@@ -12,7 +12,8 @@ import {
 import { forecastBillingPeriod } from '../../domain/forecast'
 import { formatEuro } from '../../domain/parse'
 import { roundMoney } from '../../domain/decimal'
-import { Screen, EstimateTag, meterIcon, meterKindLabel } from '../components/common'
+import { Screen, EstimateTag } from '../components/common'
+import { meterIcon, meterKindLabel } from '../components/meters'
 import type { MeterRow, PropertyRow } from '../../data/db'
 import type { Decimal } from '../../domain/decimal'
 

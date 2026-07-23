@@ -8,7 +8,8 @@ import { validateReading, type DecreaseWarning } from '../../domain/validate'
 import { formatDateDe } from '../../domain/dates'
 import { formatGermanDecimal } from '../../domain/parse'
 import { dec } from '../../domain/decimal'
-import { Field, Screen, meterKindLabel, meterUnit } from '../components/common'
+import { Field, Screen } from '../components/common'
+import { meterKindLabel, meterUnit } from '../components/meters'
 
 type DecreaseChoice = 'correction' | 'rollover' | 'replacement'
 

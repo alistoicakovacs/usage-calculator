@@ -15,10 +15,16 @@ function ensureDeviceId(): string {
 
 const AppCtx = createContext<RepoContext | undefined>(undefined)
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
+export function AppProvider({
+  children,
+  value: override,
+}: {
+  children: React.ReactNode
+  value?: RepoContext
+}) {
   const value = useMemo<RepoContext>(
-    () => ({ db: getDb(), deviceId: ensureDeviceId(), now: () => Date.now() }),
-    [],
+    () => override ?? { db: getDb(), deviceId: ensureDeviceId(), now: () => Date.now() },
+    [override],
   )
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
 }

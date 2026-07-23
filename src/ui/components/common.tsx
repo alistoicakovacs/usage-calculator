@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import './ui.css'
 
@@ -49,14 +50,35 @@ export function EstimateTag() {
   return <span className="estimate-tag">geschätzt</span>
 }
 
-export function meterIcon(kind: 'electricity' | 'gas' | 'water'): string {
-  return kind === 'electricity' ? '⚡' : kind === 'gas' ? '🔥' : '💧'
-}
-
-export function meterKindLabel(kind: 'electricity' | 'gas' | 'water'): string {
-  return kind === 'electricity' ? 'Strom' : kind === 'gas' ? 'Gas' : 'Wasser'
-}
-
-export function meterUnit(kind: 'electricity' | 'gas' | 'water'): string {
-  return kind === 'electricity' ? 'kWh' : 'm³'
+/**
+ * A destructive button that requires a second confirming click.
+ * The first click reveals the confirm/cancel choice inline.
+ */
+export function ConfirmButton({
+  label,
+  confirmLabel,
+  onConfirm,
+}: {
+  label: string
+  confirmLabel: string
+  onConfirm: () => void
+}) {
+  const [armed, setArmed] = useState(false)
+  if (!armed) {
+    return (
+      <button className="btn danger" onClick={() => setArmed(true)}>
+        {label}
+      </button>
+    )
+  }
+  return (
+    <div className="btn-row">
+      <button className="btn danger" onClick={onConfirm}>
+        {confirmLabel}
+      </button>
+      <button className="btn secondary" onClick={() => setArmed(false)}>
+        Abbrechen
+      </button>
+    </div>
+  )
 }

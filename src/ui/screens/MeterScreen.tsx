@@ -16,7 +16,8 @@ import { forecastBillingPeriod } from '../../domain/forecast'
 import { formatDateDe } from '../../domain/dates'
 import { formatEuro, formatGermanDecimal, parseGermanDecimal } from '../../domain/parse'
 import { dec, roundMoney } from '../../domain/decimal'
-import { EstimateTag, Field, Screen, meterIcon, meterKindLabel, meterUnit } from '../components/common'
+import { EstimateTag, Field, Screen, ConfirmButton } from '../components/common'
+import { meterIcon, meterKindLabel, meterUnit } from '../components/meters'
 
 export function MeterScreen() {
   const ctx = useRepoContext()
@@ -152,6 +153,21 @@ export function MeterScreen() {
       )}
 
       <BillingSection meterId={meter.id} billings={billings} onChange={refresh} />
+
+      <section className="card">
+        <h2 className="card-title">Zähler verwalten</h2>
+        <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: 0 }}>
+          Bei einem Zählerwechsel tragen Sie einfach den neuen Anfangsstand über „Stand
+          eintragen" ein und wählen „Zählerwechsel". Der Verlauf bleibt erhalten.
+        </p>
+        <ConfirmButton
+          label="Zähler löschen"
+          confirmLabel="Wirklich löschen"
+          onConfirm={() => {
+            void meterRepo.remove(ctx, meter.id).then(() => navigate(`/property/${meter.propertyId}`, { replace: true }))
+          }}
+        />
+      </section>
     </Screen>
   )
 }
