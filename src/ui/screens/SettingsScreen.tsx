@@ -13,6 +13,7 @@ import { getRecoveryKey } from '../../crypto/vault'
 import { buildPairingUrl } from '../../sync/pairing'
 import { loadServerUrl, normalizeServerUrl, saveServerUrl } from '../../sync/settings'
 import { Field, Screen } from '../components/common'
+import { installState, readInstallEnv } from '../components/pwaInstall'
 import { useAsyncData, useRepoContext } from '../AppContext'
 import { useSync, type SyncStatus } from '../SyncContext'
 import { useVault } from '../VaultContext'
@@ -38,6 +39,7 @@ export function SettingsScreen() {
   return (
     <Screen title="Mehr">
       <AppearanceSection />
+      <InstallSection />
       <SyncSection db={db} />
       <SecuritySection />
     </Screen>
@@ -61,6 +63,61 @@ function AppearanceSection() {
           </button>
         ))}
       </div>
+    </section>
+  )
+}
+
+function InstallSection() {
+  // Read once on mount: the environment does not change within a session, and
+  // reading eagerly keeps the component a pure function of that snapshot.
+  const [state] = useState(() => installState(readInstallEnv()))
+
+  if (state === 'standalone') {
+    return (
+      <section className="card">
+        <h2 className="card-title">App installieren</h2>
+        <div className="callout" role="status">
+          <span className="c-icon">✓</span>
+          <span>Als App installiert — Sie nutzen bereits die Version vom Home-Bildschirm.</span>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="card">
+      <h2 className="card-title">App installieren</h2>
+
+      {state === 'ios' ? (
+        <>
+          <p className="hint">
+            Fügen Sie Zählerstand zum Home-Bildschirm hinzu, um sie wie eine echte App im Vollbild
+            und offline zu nutzen — ohne App Store.
+          </p>
+          <ol className="install-steps">
+            <li>
+              Tippen Sie unten in Safari auf <strong>Teilen</strong> (das Symbol mit dem Pfeil nach
+              oben).
+            </li>
+            <li>
+              Wählen Sie <strong>Zum Home-Bildschirm</strong>.
+            </li>
+            <li>
+              Bestätigen Sie mit <strong>Hinzufügen</strong> oben rechts.
+            </li>
+          </ol>
+          <p className="hint">
+            Das funktioniert nur in <strong>Safari</strong>. In Chrome oder Firefox fehlt der
+            Eintrag „Zum Home-Bildschirm“.
+          </p>
+        </>
+      ) : (
+        <p className="hint">
+          Auf iPhone oder iPad öffnen Sie diese Seite in <strong>Safari</strong> und tippen auf{' '}
+          <strong>Teilen → Zum Home-Bildschirm</strong>, um sie als App zu installieren. Am Computer
+          bieten Chrome und Edge das Installieren über das Symbol in der Adressleiste an.
+        </p>
+      )}
     </section>
   )
 }
