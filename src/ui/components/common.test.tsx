@@ -1,59 +1,43 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { SyncProvider, type SyncContextValue } from '../SyncContext'
-import type { StoredConflict } from '../../sync/state'
 import { Screen } from './common'
 
-const conflict = (id: string): StoredConflict => ({
-  id,
-  table: 'properties',
-  local: {} as never,
-  remote: {} as never,
-  detectedAt: 0,
-})
-
-function renderScreen(sync?: Partial<SyncContextValue>) {
-  const value: SyncContextValue | undefined = sync && {
-    status: 'idle',
-    conflicts: [],
-    syncNow: vi.fn(),
-    resolve: vi.fn(),
-    ...sync,
-  }
-
-  const content = <Screen title="Zählerstand">{null}</Screen>
-  render(
-    <MemoryRouter>
-      {value ? <SyncProvider value={value}>{content}</SyncProvider> : content}
-    </MemoryRouter>,
-  )
+function renderScreen(ui: React.ReactNode) {
+  render(<MemoryRouter>{ui}</MemoryRouter>)
 }
 
 describe('Screen', () => {
-  it('renders outside a sync provider, as the local-only app did', () => {
-    renderScreen()
-
+  it('renders its title as a heading', () => {
+    renderScreen(<Screen title="Zählerstand">{null}</Screen>)
     expect(screen.getByRole('heading', { name: 'Zählerstand' })).toBeInTheDocument()
+  })
+
+  it('shows a back link only when a back target is given', () => {
+    renderScreen(
+      <Screen title="Zähler" back="/meters">
+        {null}
+      </Screen>,
+    )
+    expect(screen.getByRole('link', { name: /zurück/i })).toHaveAttribute('href', '/meters')
+  })
+
+  it('omits the back link when no target is given', () => {
+    renderScreen(<Screen title="Übersicht">{null}</Screen>)
+    expect(screen.queryByRole('link', { name: /zurück/i })).not.toBeInTheDocument()
+  })
+
+  it('renders an optional header action', () => {
+    renderScreen(
+      <Screen title="Übersicht" action={<button type="button">Aktion</button>}>
+        {null}
+      </Screen>,
+    )
+    expect(screen.getByRole('button', { name: 'Aktion' })).toBeInTheDocument()
+  })
+
+  it('does not put sync chrome in the header anymore', () => {
+    renderScreen(<Screen title="Zählerstand">{null}</Screen>)
     expect(screen.queryByRole('link', { name: /synchronisierung/i })).not.toBeInTheDocument()
-  })
-
-  it('offers a way into the sync settings', () => {
-    renderScreen({ status: 'idle' })
-
-    expect(screen.getByRole('link', { name: /synchronisierung/i })).toHaveAttribute('href', '/sync')
-  })
-
-  it('flags outstanding conflicts and links straight to them', () => {
-    renderScreen({ status: 'idle', conflicts: [conflict('a'), conflict('b')] })
-
-    const link = screen.getByRole('link', { name: /2 konflikte/i })
-    expect(link).toHaveAttribute('href', '/conflicts')
-  })
-
-  it('says when the device cannot reach the server', () => {
-    renderScreen({ status: 'offline' })
-
-    expect(screen.getByRole('link', { name: /offline/i })).toBeInTheDocument()
   })
 })

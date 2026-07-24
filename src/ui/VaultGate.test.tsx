@@ -27,7 +27,7 @@ describe('VaultGate', () => {
       </VaultGate>,
     )
 
-    expect(await screen.findByRole('button', { name: /neuen tresor anlegen/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /einrichten/i })).toBeInTheDocument()
     expect(screen.queryByText('geheim')).not.toBeInTheDocument()
   })
 
@@ -117,7 +117,7 @@ describe('VaultGate', () => {
       </VaultGate>,
     )
 
-    expect(await screen.findByRole('button', { name: /neuen tresor anlegen/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /einrichten/i })).toBeInTheDocument()
   })
 
   it('does not let a pairing link replace a vault this device already has', async () => {

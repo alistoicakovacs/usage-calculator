@@ -13,7 +13,7 @@ export function ConflictScreen() {
   const { conflicts } = useSync()
 
   return (
-    <Screen title="Konflikte" back="/">
+    <Screen title="Konflikte" back="/settings">
       {conflicts.length === 0 ? (
         <div className="empty-state">
           <p>Keine Konflikte. Alle Geräte sind sich einig.</p>

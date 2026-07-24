@@ -1,19 +1,23 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useOptionalSync, type SyncContextValue } from '../SyncContext'
 import './ui.css'
 
+/**
+ * Page shell: a sticky header with an optional back link and an optional
+ * right-aligned action slot. Sync moved out of the header into Settings;
+ * navigation now lives in the persistent bottom tab bar.
+ */
 export function Screen({
   title,
   back,
+  action,
   children,
 }: {
   title: string
   back?: string
+  action?: React.ReactNode
   children: React.ReactNode
 }) {
-  const sync = useOptionalSync()
-
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -23,49 +27,31 @@ export function Screen({
           </Link>
         )}
         <h1>{title}</h1>
-        {sync && <SyncIndicator sync={sync} />}
+        {action}
       </header>
       {children}
     </div>
   )
 }
 
-/**
- * Sync is meant to be forgettable, so this stays a single quiet marker — until
- * something needs the user, which is only ever an unsettled conflict.
- */
-function SyncIndicator({ sync }: { sync: SyncContextValue }) {
-  if (sync.conflicts.length > 0) {
-    const count = sync.conflicts.length
-    return (
-      <Link className="sync-indicator conflicts" to="/conflicts">
-        {count} Konflikt{count === 1 ? '' : 'e'}
-      </Link>
-    )
-  }
-
-  return (
-    <Link className={`sync-indicator ${sync.status}`} to="/sync" title="Synchronisierung">
-      {sync.status === 'offline' ? 'Offline' : 'Synchronisierung'}
-    </Link>
-  )
-}
-
 export function Field({
   label,
   error,
+  hint,
   children,
 }: {
   label: string
   error?: string
+  hint?: string
   children: React.ReactNode
 }) {
   return (
     <div className="form-field">
       <label>
-        {label}
+        <span>{label}</span>
         {children}
       </label>
+      {hint !== undefined && <span className="field-hint">{hint}</span>}
       {error !== undefined && <span className="error">{error}</span>}
     </div>
   )
@@ -73,6 +59,17 @@ export function Field({
 
 export function EstimateTag() {
   return <span className="estimate-tag">geschätzt</span>
+}
+
+/** Balance/status chip. */
+export function Chip({
+  tone,
+  children,
+}: {
+  tone: 'positive' | 'negative' | 'neutral'
+  children: React.ReactNode
+}) {
+  return <span className={`chip ${tone}`}>{children}</span>
 }
 
 /**
