@@ -10,7 +10,8 @@ export function PropertyFormScreen() {
   const ctx = useRepoContext()
   const navigate = useNavigate()
   const { propertyId } = useParams()
-  const editing = propertyId !== undefined && propertyId !== 'new'
+  const editing = propertyId !== undefined
+  const back = editing ? `/property/${propertyId}` : '/properties'
 
   const { data: existing } = useAsyncData(
     async () => (editing ? propertyRepo.get(ctx, propertyId) : undefined),
@@ -21,7 +22,8 @@ export function PropertyFormScreen() {
   const [postalCode, setPostalCode] = useState<string>()
   const [error, setError] = useState<string>()
 
-  if (editing && existing === undefined) return <Screen title="Immobilie" back="/">{null}</Screen>
+  if (editing && existing === undefined)
+    return <Screen title="Immobilie bearbeiten" back={back}>{null}</Screen>
 
   const labelValue = label ?? existing?.label ?? ''
   const postalValue = postalCode ?? existing?.postalCode ?? ''
@@ -41,7 +43,7 @@ export function PropertyFormScreen() {
   }
 
   return (
-    <Screen title={editing ? 'Immobilie bearbeiten' : 'Neue Immobilie'} back="/">
+    <Screen title={editing ? 'Immobilie bearbeiten' : 'Neue Immobilie'} back={back}>
       <div className="card">
         <Field label="Bezeichnung (optional)">
           <input

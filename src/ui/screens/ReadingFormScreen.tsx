@@ -101,7 +101,7 @@ export function ReadingFormScreen() {
         </h2>
 
         {last && !editing && (
-          <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: 0 }}>
+          <p className="hint">
             Letzter Stand: {formatGermanDecimal(dec(last.value))} {unit} am{' '}
             {formatDateDe(last.date)}
           </p>

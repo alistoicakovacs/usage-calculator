@@ -1,27 +1,25 @@
-// Property detail: meters list, add meter, forecast per meter.
+// Property detail: meters list with per-meter forecast, inline add-meter,
+// edit and delete of the property.
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAsyncData, useRepoContext } from '../AppContext'
+import { meterRepo, propertyRepo } from '../../data/repos'
 import {
-  billingPeriodRepo,
-  gasConversionRepo,
-  meterRepo,
-  propertyRepo,
-  readingRepo,
-  tariffRepo,
-} from '../../data/repos'
-import { forecastBillingPeriod, type Forecast } from '../../domain/forecast'
-import { formatEuro } from '../../domain/parse'
-import { roundMoney } from '../../domain/decimal'
-import { EstimateTag, Field, Screen, ConfirmButton } from '../components/common'
-import { meterIcon, meterKindLabel } from '../components/meters'
+  isConfigured,
+  lastReading,
+  loadBundlesForProperty,
+  meterForecast,
+  todayIso,
+} from '../data'
+import { formatDateDe } from '../../domain/dates'
+import { formatEuro, formatGermanDecimal } from '../../domain/parse'
+import { dec, roundMoney } from '../../domain/decimal'
+import { Chip, ConfirmButton, EstimateTag, Field, Screen } from '../components/common'
+import { meterIcon, meterKindLabel, meterUnit } from '../components/meters'
 import type { MeterKind } from '../../domain/types'
-import type { MeterRow } from '../../data/db'
 
-interface MeterSummary {
-  meter: MeterRow
-  lastReading?: { date: string; value: string }
-  forecast?: Forecast
+function kindAccent(kind: MeterKind): string {
+  return kind === 'electricity' ? 'elec' : kind === 'gas' ? 'gas' : 'water'
 }
 
 export function PropertyScreen() {
@@ -36,33 +34,13 @@ export function PropertyScreen() {
     if (!propertyId) return undefined
     const property = await propertyRepo.get(ctx, propertyId)
     if (!property) return undefined
-    const meters = await meterRepo.byProperty(ctx, propertyId)
-    const summaries: MeterSummary[] = []
-    for (const meter of meters) {
-      const [readings, tariffs, conversions, billings] = await Promise.all([
-        readingRepo.byMeter(ctx, meter.id),
-        tariffRepo.byMeter(ctx, meter.id),
-        gasConversionRepo.byMeter(ctx, meter.id),
-        billingPeriodRepo.byMeter(ctx, meter.id),
-      ])
-      const last = readings[readings.length - 1]
-      const billing = billings[billings.length - 1]
-      let forecast: Forecast | undefined
-      if (billing && tariffs.length > 0) {
-        const f = forecastBillingPeriod(readings, meter.kind, tariffs, billing, conversions)
-        if (f.ok) forecast = f.value
-      }
-      summaries.push({
-        meter,
-        lastReading: last ? { date: last.date, value: last.value } : undefined,
-        forecast,
-      })
-    }
-    return { property, summaries }
+    const bundles = await loadBundlesForProperty(ctx, propertyId)
+    return { property, bundles }
   }, [propertyId])
 
-  if (data === undefined) return <Screen title="Immobilie" back="/">{null}</Screen>
-  const { property, summaries } = data
+  if (data === undefined) return <Screen title="Objekt" back="/properties">{null}</Screen>
+  const { property, bundles } = data
+  const today = todayIso(ctx)
 
   async function addMeter() {
     if (!propertyId) return
@@ -73,60 +51,88 @@ export function PropertyScreen() {
     })
     setShowAddMeter(false)
     setMeterLabel('')
+    setMeterKind('electricity')
     refresh()
   }
 
   return (
-    <Screen title={property.label || property.postalCode} back="/">
-      {summaries.map(({ meter, lastReading, forecast }) => (
-        <section key={meter.id} className="card">
-          <h2 className="card-title">
-            {meterIcon(meter.kind)} {meter.label || meterKindLabel(meter.kind)}
-          </h2>
+    <Screen
+      title={property.label || property.postalCode}
+      back="/properties"
+      action={
+        <Link
+          to={`/property/${property.id}/edit`}
+          style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: '0.9rem' }}
+        >
+          Bearbeiten
+        </Link>
+      }
+    >
+      {bundles.length === 0 && (
+        <p className="empty-state" style={{ padding: '0.75rem' }}>
+          Noch keine Zähler für diese Immobilie.
+        </p>
+      )}
 
-          {forecast && !forecast.insufficientData && (
-            <p style={{ margin: '0 0 0.6rem' }}>
-              <span
-                className={`balance ${forecast.balance.gte(0) ? 'positive' : 'negative'}`}
-              >
-                {forecast.balance.gte(0) ? 'Guthaben ' : 'Nachzahlung '}
-                {formatEuro(roundMoney(forecast.balance.abs()))}
+      {bundles.map((b) => {
+        const last = lastReading(b)
+        const unit = meterUnit(b.meter.kind)
+        const forecast = isConfigured(b) ? meterForecast(b, today) : undefined
+        const showForecast = forecast !== undefined && !forecast.insufficientData
+        return (
+          <button
+            key={b.meter.id}
+            className="action-card"
+            onClick={() => navigate(`/meter/${b.meter.id}`)}
+          >
+            <span className={`icon ${kindAccent(b.meter.kind)}`}>{meterIcon(b.meter.kind)}</span>
+            <span className="body">
+              <span className="label">{b.meter.label || meterKindLabel(b.meter.kind)}</span>
+              <br />
+              <span className="sub">
+                {last
+                  ? `Letzter Stand: ${formatGermanDecimal(dec(last.value))} ${unit} am ${formatDateDe(last.date)}`
+                  : 'Noch kein Stand'}
               </span>
-              <EstimateTag />
-            </p>
-          )}
-
-          {lastReading && (
-            <p className="secondary" style={{ color: 'var(--text-dim)', margin: '0 0 0.6rem', fontSize: '0.85rem' }}>
-              Letzter Stand: {lastReading.value.replace('.', ',')} am{' '}
-              {lastReading.date.split('-').reverse().join('.')}
-            </p>
-          )}
-
-          <div className="btn-row">
-            <button className="btn" onClick={() => navigate(`/meter/${meter.id}/reading/new`)}>
-              Stand eintragen
-            </button>
-            <Link
-              className="btn secondary"
-              style={{ textAlign: 'center', textDecoration: 'none' }}
-              to={`/meter/${meter.id}`}
-            >
-              Details
-            </Link>
-          </div>
-        </section>
-      ))}
+            </span>
+            {showForecast && (
+              <span className="trailing">
+                <Chip tone={forecast.balance.gte(0) ? 'positive' : 'negative'}>
+                  {forecast.balance.gte(0) ? 'Guthaben ' : 'Nachzahlung '}
+                  {formatEuro(roundMoney(forecast.balance.abs()))}
+                </Chip>
+                <EstimateTag />
+              </span>
+            )}
+            <span className="chevron">›</span>
+          </button>
+        )
+      })}
 
       {showAddMeter ? (
         <div className="card">
           <h2 className="card-title">Neuer Zähler</h2>
           <Field label="Art">
-            <select value={meterKind} onChange={(e) => setMeterKind(e.target.value as MeterKind)}>
-              <option value="electricity">Strom (kWh)</option>
-              <option value="gas">Gas (m³)</option>
-              <option value="water">Wasser (m³)</option>
-            </select>
+            <div className="segmented">
+              <button
+                className={meterKind === 'electricity' ? 'active' : ''}
+                onClick={() => setMeterKind('electricity')}
+              >
+                ⚡ Strom
+              </button>
+              <button
+                className={meterKind === 'gas' ? 'active' : ''}
+                onClick={() => setMeterKind('gas')}
+              >
+                🔥 Gas
+              </button>
+              <button
+                className={meterKind === 'water' ? 'active' : ''}
+                onClick={() => setMeterKind('water')}
+              >
+                💧 Wasser
+              </button>
+            </div>
           </Field>
           <Field label="Bezeichnung (optional)">
             <input
@@ -168,7 +174,7 @@ export function PropertyScreen() {
           label="Immobilie löschen"
           confirmLabel="Wirklich löschen"
           onConfirm={() => {
-            void propertyRepo.remove(ctx, property.id).then(() => navigate('/', { replace: true }))
+            void propertyRepo.remove(ctx, property.id).then(() => navigate('/properties'))
           }}
         />
       </section>
